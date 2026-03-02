@@ -30,6 +30,7 @@ jobs:
           filters: |
             # Register each dive folder here (name must match folder)
             eastlake-sales: dives/eastlake-sales/**
+            stock-performance: dives/stock-performance/**
 
   deploy:
     name: Deploy Dives
