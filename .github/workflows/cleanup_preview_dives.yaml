@@ -13,28 +13,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: opt-nc/setup-duckdb-action@v1.2.2
+        with:
+          version: v1.4.4
       - name: Cleanup preview dives
         shell: bash
         env:
-          MOTHERDUCK_TOKEN: ${{ secrets.DIVES_MOTHERDUCK_TOKEN }}
+          MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
           BRANCH_NAME: ${{ github.event.ref }}
         run: |
-          curl https://install.duckdb.org | sh
-          CLI_PATH="${HOME}/.duckdb/cli/latest/duckdb"
-          if [ ! -x "${CLI_PATH}" ]; then
-            echo "DuckDB CLI not found at expected path '${CLI_PATH}'"
-            exit 1
-          fi
-          if ! ${CLI_PATH} -c "INSTALL motherduck"; then
-            echo "Failed to install MotherDuck extension"
-            exit 1
-          fi
-          PREVIEW_DIVE_IDS=$(${CLI_PATH} md: -csv -noheader -c "SELECT id FROM MD_LIST_DIVES() WHERE title LIKE '%:${BRANCH_NAME} (Preview)'")
+          PREVIEW_DIVE_IDS=$(duckdb md: -csv -noheader -c "SELECT id FROM MD_LIST_DIVES() WHERE title LIKE '%:${BRANCH_NAME} (Preview)'")
           if [ -z "$PREVIEW_DIVE_IDS" ]; then
             echo "No preview dives found for branch '${BRANCH_NAME}'"
             exit 0
           fi
           while IFS= read -r DIVE_ID; do
             echo "Deleting preview dive ${DIVE_ID}"
-            ${CLI_PATH} md: -csv -noheader -c "FROM MD_DELETE_DIVE(id='${DIVE_ID}'::UUID)"
+            duckdb md: -csv -noheader -c "FROM MD_DELETE_DIVE(id='${DIVE_ID}'::UUID)"
           done <<< "$PREVIEW_DIVE_IDS"

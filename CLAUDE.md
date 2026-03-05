@@ -10,7 +10,7 @@ This is a **Blessed Dives** repo — version-controlled MotherDuck Dives deploye
 
 This repo is designed to be **forked** — the user should have their own fork for CI/CD to work. If the user hasn't set up yet, walk them through the README's Getting Started and Token Setup sections.
 
-**Token handling**: The user must provide a MotherDuck API token. Ask them for it — never invent or guess tokens. For local dev, a personal read/write token is fine — write it to `.dive-preview/.env`. For the CI/CD GitHub secret (`DIVES_MOTHERDUCK_TOKEN`), **strongly recommend a service account token** ([docs](https://motherduck.com/docs/key-tasks/service-accounts-guide/)). Dives are owned by whatever account's token deploys them — if a personal token is used, collaborators can't edit or redeploy those dives. A shared service account ensures the whole team can collaborate on published dives.
+**Token handling**: The user must provide a MotherDuck API token. Ask them for it — never invent or guess tokens. For local dev, a personal read/write token is fine — write it to `.dive-preview/.env`. For the CI/CD GitHub secret (`MOTHERDUCK_TOKEN`), **strongly recommend a service account token** ([docs](https://motherduck.com/docs/key-tasks/service-accounts-guide/)). Dives are owned by whatever account's token deploys them — if a personal token is used, collaborators can't edit or redeploy those dives. A shared service account ensures the whole team can collaborate on published dives.
 
 ## Repository Structure
 

@@ -38,42 +38,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: opt-nc/setup-duckdb-action@v1.2.2
+        with:
+          version: v1.4.4
       - name: Deploy Dives
         shell: bash
         env:
-          MOTHERDUCK_TOKEN: ${{ secrets.DIVES_MOTHERDUCK_TOKEN }}
+          MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
         run: |
-          curl https://install.duckdb.org | sh
-          CLI_PATH="${HOME}/.duckdb/cli/latest/duckdb"
-          if [ ! -x "${CLI_PATH}" ]; then
-            echo "DuckDB CLI not found at expected path '${CLI_PATH}'"
-            exit 1
-          fi
-          if ! ${CLI_PATH} -c "INSTALL motherduck"; then
-            echo "Failed to install MotherDuck extension"
-            exit 1
-          fi
           for d in $(jq -r '.[]' <<< '${{ needs.compute_changes.outputs.changed_dives }}'); do
-              echo "$d"
-              ID=$(cat dives/${d}/dive_metadata.json | jq -r '.id')
-              TITLE=$(cat dives/${d}/dive_metadata.json | jq -r '.title')
-              DESCRIPTION=$(cat dives/${d}/dive_metadata.json | jq -r '.description')
-              EXISTING_DIVE_ID=$(${CLI_PATH} md: -csv -noheader -c "SELECT id FROM MD_LIST_DIVES() where title = '${TITLE}'")
-              if [ -z "$EXISTING_DIVE_ID" ]; then
-                EXISTING_DIVE_COUNT=0
-              else
-                EXISTING_DIVE_COUNT=$(echo "$EXISTING_DIVE_ID" | wc -l | tr -d ' ')
-              fi
-              # Strip REQUIRED_DATABASES export — the dive runtime declares it; a duplicate causes a runtime error.
-              CONTENT_SQL="(SELECT regexp_replace(content, 'export const REQUIRED_DATABASES[^\n]*\n', '', 'g') FROM read_text('dives/${d}/${d}.tsx'))"
-              if (( $EXISTING_DIVE_COUNT == 0 )); then
-                ${CLI_PATH} md: -csv -noheader -c "SET VARIABLE content = ${CONTENT_SQL}; FROM MD_CREATE_DIVE(title:='${TITLE}', content:=getvariable('content'), description :='${DESCRIPTION}')"
-              elif (( $EXISTING_DIVE_COUNT == 1 )); then
-                ${CLI_PATH} md: -csv -noheader -c "SET VARIABLE content = ${CONTENT_SQL}; FROM MD_UPDATE_DIVE_CONTENT(id ='${EXISTING_DIVE_ID}'::UUID,content =getvariable('content')); FROM MD_UPDATE_DIVE_METADATA(id ='${EXISTING_DIVE_ID}'::UUID, title ='${TITLE}', description ='${DESCRIPTION}');"
-              else
-                echo "Error: Found ${EXISTING_DIVE_COUNT} dives with title '${TITLE}'. Expected 0 or 1."
-                exit 1
-              fi
+            echo "Deploying ${d}..."
+            ./scripts/deploy-dive.sh "$d"
           done
 
   deploy-preview:
@@ -83,48 +58,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: opt-nc/setup-duckdb-action@v1.2.2
+        with:
+          version: v1.4.4
       - name: Deploy Dives for preview
         id: deploy-preview
         shell: bash
         env:
-          MOTHERDUCK_TOKEN: ${{ secrets.DIVES_MOTHERDUCK_TOKEN }}
-          BRANCH_NAME: ${{ github.head_ref }}
+          MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
+          PREVIEW_BRANCH: ${{ github.head_ref }}
         run: |
-          curl https://install.duckdb.org | sh
-          CLI_PATH="${HOME}/.duckdb/cli/latest/duckdb"
-          if [ ! -x "${CLI_PATH}" ]; then
-            echo "DuckDB CLI not found at expected path '${CLI_PATH}'"
-            exit 1
-          fi
-          if ! ${CLI_PATH} -c "INSTALL motherduck"; then
-            echo "Failed to install MotherDuck extension"
-            exit 1
-          fi
           COMMENT_BODY=""
           for d in $(jq -r '.[]' <<< '${{ needs.compute_changes.outputs.changed_dives }}'); do
-              echo "$d"
-              ID=$(cat dives/${d}/dive_metadata.json | jq -r '.id')
-              TITLE=$(cat dives/${d}/dive_metadata.json | jq -r '.title')
-              DESCRIPTION=$(cat dives/${d}/dive_metadata.json | jq -r '.description')
-              PREVIEW_TITLE="${TITLE}:${BRANCH_NAME} (Preview)"
-              EXISTING_DIVE_ID=$(${CLI_PATH} md: -csv -noheader -c "SELECT id FROM MD_LIST_DIVES() where title = '${PREVIEW_TITLE}'")
-              if [ -z "$EXISTING_DIVE_ID" ]; then
-                EXISTING_DIVE_COUNT=0
-              else
-                EXISTING_DIVE_COUNT=$(echo "$EXISTING_DIVE_ID" | wc -l | tr -d ' ')
-              fi
-              # Strip REQUIRED_DATABASES export — the dive runtime declares it; a duplicate causes a runtime error.
-              CONTENT_SQL="(SELECT regexp_replace(content, 'export const REQUIRED_DATABASES[^\n]*\n', '', 'g') FROM read_text('dives/${d}/${d}.tsx'))"
-              if (( $EXISTING_DIVE_COUNT == 0 )); then
-                DIVE_ID=$(${CLI_PATH} md: -csv -noheader -c "SET VARIABLE content = ${CONTENT_SQL}; SELECT id FROM MD_CREATE_DIVE(title:='${PREVIEW_TITLE}', content:=getvariable('content'), description :='${DESCRIPTION}')")
-              elif (( $EXISTING_DIVE_COUNT == 1 )); then
-                ${CLI_PATH} md: -csv -noheader -c "SET VARIABLE content = ${CONTENT_SQL}; FROM MD_UPDATE_DIVE_CONTENT(id ='${EXISTING_DIVE_ID}'::UUID,content =getvariable('content')); FROM MD_UPDATE_DIVE_METADATA(id ='${EXISTING_DIVE_ID}'::UUID, title ='${PREVIEW_TITLE}', description ='${DESCRIPTION}');"
-                DIVE_ID="${EXISTING_DIVE_ID}"
-              else
-                echo "Error: Found ${EXISTING_DIVE_COUNT} dives with title '${PREVIEW_TITLE}'. Expected 0 or 1."
-                exit 1
-              fi
-              COMMENT_BODY="${COMMENT_BODY}| ${PREVIEW_TITLE} | [Open Dive](https://app.motherduck.com/dives/${DIVE_ID}) |"$'\n'
+            echo "Deploying preview for ${d}..."
+            COMMENT_BODY="${COMMENT_BODY}$(./scripts/deploy-dive.sh "$d")"$'\n'
           done
           echo "comment_body<<EOF" >> $GITHUB_OUTPUT
           echo "$COMMENT_BODY" >> $GITHUB_OUTPUT

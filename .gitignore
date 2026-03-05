@@ -1,3 +1,5 @@
 .dive-preview/.env
 .dive-preview/node_modules/
 .dive-preview/src/dive.tsx
+.DS_Store
+*.log
