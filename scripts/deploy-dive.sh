@@ -50,14 +50,18 @@ fi
 CONTENT_SQL="(SELECT regexp_replace(content, 'export const REQUIRED_DATABASES[^\n]*\n', '', 'g') FROM read_text('${DIVE_DIR}/${DIVE_NAME}.tsx'))"
 
 if (( EXISTING_DIVE_COUNT == 0 )); then
+  echo "  Creating new dive '${DEPLOY_TITLE}'..." >&2
   DIVE_ID=$(duckdb md: -csv -noheader -c "SET VARIABLE content = ${CONTENT_SQL}; SELECT id FROM MD_CREATE_DIVE(title:='${DEPLOY_TITLE}', content:=getvariable('content'), description:='${DESCRIPTION}')")
 elif (( EXISTING_DIVE_COUNT == 1 )); then
+  echo "  Updating existing dive '${DEPLOY_TITLE}' (${EXISTING_DIVE_ID})..." >&2
   duckdb md: -csv -noheader -c "SET VARIABLE content = ${CONTENT_SQL}; FROM MD_UPDATE_DIVE_CONTENT(id='${EXISTING_DIVE_ID}'::UUID, content=getvariable('content')); FROM MD_UPDATE_DIVE_METADATA(id='${EXISTING_DIVE_ID}'::UUID, title='${DEPLOY_TITLE}', description='${DESCRIPTION}');"
   DIVE_ID="${EXISTING_DIVE_ID}"
 else
   echo "Error: Found ${EXISTING_DIVE_COUNT} dives with title '${DEPLOY_TITLE}'. Expected 0 or 1." >&2
   exit 1
 fi
+
+echo "  Deployed: https://app.motherduck.com/dives/${DIVE_ID}" >&2
 
 if [ -n "${PREVIEW_BRANCH:-}" ]; then
   echo "| ${DEPLOY_TITLE} | [Open Dive](https://app.motherduck.com/dives/${DIVE_ID}) |"
