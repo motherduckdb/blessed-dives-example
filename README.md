@@ -12,6 +12,8 @@ The example below assumes Claude Code is your agent -- other agents like Codex w
 - **MotherDuck MCP server** -- [install for your client](https://motherduck.com/docs/key-tasks/ai-and-motherduck/connecting-ai-tools-to-motherduck/) (Claude Code, Cursor, etc.). The MCP `get_dive_guide` tool provides full authoring docs for dive components.
 - **Node.js 18+**
 
+> **Dev Container**: This repo includes a [dev container](.devcontainer/devcontainer.json) with Node 20, DuckDB, and dependencies pre-installed. Open it in GitHub Codespaces or VS Code Dev Containers to skip local setup.
+
 ## Getting Started
 
 1. **Fork this repo** to your own GitHub account (you'll need your own repo for CI/CD to work).
@@ -26,19 +28,28 @@ The example below assumes Claude Code is your agent -- other agents like Codex w
 You need a MotherDuck API token to run dives locally and in CI.
 
 - **For local development**: a personal read/write token works fine. Go to [app.motherduck.com](https://app.motherduck.com) > Settings > API Tokens > Create token (read/write).
-- **For CI / shared repos**: create a [service account](https://motherduck.com/docs/key-tasks/service-accounts-guide/) so deployed dives aren't tied to a personal account. Use the service account's token as your GitHub secret.
+- **For CI / shared repos**: create a [service account](https://motherduck.com/docs/key-tasks/service-accounts-guide/) so deployed dives aren't tied to a personal account. Add the service account's token as a GitHub repository secret named **`MOTHERDUCK_TOKEN`** (Settings > Secrets and variables > Actions > New repository secret).
 
 Write your token to the local env file:
 
 ```bash
 cd .dive-preview
 cp .env.example .env
-# Open .env and paste your token as the value of MOTHERDUCK_TOKEN
+# Open .env and paste your token as the value of VITE_MOTHERDUCK_TOKEN
 ```
 
 > **Agent note**: If the user hasn't provided a token yet, ask them for it. Do not invent or guess tokens.
 
 ## Local Preview
+
+**Quick start** (requires `make`):
+
+```bash
+make setup                        # first time: install deps + create .env
+make preview eastlake-sales       # preview the example dive
+```
+
+**Manual steps** (equivalent to the above):
 
 ```bash
 cd .dive-preview
@@ -52,6 +63,8 @@ npm run dev
 ```
 
 The `.dive-preview/` directory is a committed Vite + React scaffold with an SDK shim (`src/md-sdk.tsx`) that provides the same `useSQLQuery` API as the production dive runtime.
+
+Run `make help` to see all available shortcuts.
 
 ## Dive Structure
 
@@ -69,8 +82,14 @@ dives/
 
 ## Creating a New Dive
 
-1. Create a new folder `dives/<name>/` with `<name>.tsx` and `dive_metadata.json`.
-2. Use the MotherDuck MCP's `get_dive_guide` tool for component authoring guidance (TSX structure, `useSQLQuery`, styling, available libraries).
+1. Scaffold the dive folder (or create `dives/<name>/` with `<name>.tsx` and `dive_metadata.json` manually):
+   ```bash
+   make new-dive my-dive
+   ```
+2. Create your dive in `dives/my-dive/my-dive.tsx`. You can:
+   - **Copy an existing dive** from `dives/eastlake-sales/eastlake-sales.tsx` and adapt it to your data.
+   - **Export from the MotherDuck UI** -- create a Dive at [app.motherduck.com](https://app.motherduck.com), then copy its source into your `.tsx` file.
+   - **Generate with an AI agent** -- if you have the [MotherDuck MCP server](https://motherduck.com/docs/key-tasks/ai-and-motherduck/connecting-ai-tools-to-motherduck/) connected (Claude Code, Cursor, etc.), ask your agent to create the dive component for you.
 3. Register the dive in CI -- add a filter line to `.github/workflows/deploy_dives.yaml`:
    ```yaml
    filters: |
@@ -79,15 +98,14 @@ dives/
    ```
 4. Preview locally:
    ```bash
-   echo 'export { default } from "../../dives/my-dive/my-dive";' > .dive-preview/src/dive.tsx
-   cd .dive-preview && npm run dev
+   make preview my-dive
    ```
 
 ## CI/CD Setup
 
 ### GitHub Secret
 
-Set `DIVES_MOTHERDUCK_TOKEN` as a repository secret (Settings > Secrets and variables > Actions). This must be a **read/write** token.
+Set `MOTHERDUCK_TOKEN` as a repository secret (Settings > Secrets and variables > Actions). This must be a **read/write** token.
 
 > **Recommended**: Use a [service account](https://motherduck.com/docs/key-tasks/service-accounts-guide/) token so published dives aren't tied to a personal account.
 
