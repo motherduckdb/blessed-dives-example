@@ -9,7 +9,7 @@
 #   duckdb must be on PATH with the motherduck extension installed.
 #
 # Environment:
-#   MOTHERDUCK_TOKEN  (required) – MotherDuck API token
+#   motherduck_token  (required) – MotherDuck API token
 #   PREVIEW_BRANCH    (optional) – when set, deploys as a preview dive
 #                                  with title "<Title>:<branch> (Preview)"
 #

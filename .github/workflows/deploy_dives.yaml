@@ -38,14 +38,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: opt-nc/setup-duckdb-action@v1.2.2
-        with:
-          version: v1.4.4
       - name: Deploy Dives
         shell: bash
         env:
-          MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
+          motherduck_token: ${{ secrets.MOTHERDUCK_TOKEN }}
         run: |
+          curl -s https://install.motherduck.com | sh
+          DUCKDB_VERSION=$(curl -sf https://api.motherduck.com/latest_supported_duckdb_version.txt)
+          if [ -n "$DUCKDB_VERSION" ]; then
+            CLI_PATH="${HOME}/.duckdb/cli/${DUCKDB_VERSION}/duckdb"
+          else
+            CLI_PATH=${HOME}/.duckdb/cli/*/duckdb
+          fi
+          echo "Using DuckDB CLI at: ${CLI_PATH}"
+          if [ ! -x "${CLI_PATH}" ]; then
+            echo "DuckDB CLI not found at expected path '${CLI_PATH}'"
+            exit 1
+          fi
+          export PATH="$(dirname ${CLI_PATH}):${PATH}"
           for d in $(jq -r '.[]' <<< '${{ needs.compute_changes.outputs.changed_dives }}'); do
             echo "Deploying ${d}..."
             ./scripts/deploy-dive.sh "$d"
@@ -58,16 +68,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: opt-nc/setup-duckdb-action@v1.2.2
-        with:
-          version: v1.4.4
       - name: Deploy Dives for preview
         id: deploy-preview
         shell: bash
         env:
-          MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
+          motherduck_token: ${{ secrets.MOTHERDUCK_TOKEN }}
           PREVIEW_BRANCH: ${{ github.head_ref }}
         run: |
+          curl -s https://install.motherduck.com | sh
+          DUCKDB_VERSION=$(curl -sf https://api.motherduck.com/latest_supported_duckdb_version.txt)
+          if [ -n "$DUCKDB_VERSION" ]; then
+            CLI_PATH="${HOME}/.duckdb/cli/${DUCKDB_VERSION}/duckdb"
+          else
+            CLI_PATH=${HOME}/.duckdb/cli/*/duckdb
+          fi
+          echo "Using DuckDB CLI at: ${CLI_PATH}"
+          if [ ! -x "${CLI_PATH}" ]; then
+            echo "DuckDB CLI not found at expected path '${CLI_PATH}'"
+            exit 1
+          fi
+          export PATH="$(dirname ${CLI_PATH}):${PATH}"
           COMMENT_BODY=""
           for d in $(jq -r '.[]' <<< '${{ needs.compute_changes.outputs.changed_dives }}'); do
             echo "Deploying preview for ${d}..."
