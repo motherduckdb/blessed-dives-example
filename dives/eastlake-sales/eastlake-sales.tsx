@@ -82,7 +82,7 @@ export default function EastlakeSales() {
 
   return (
     <div style={{ fontFamily: SANS, padding: "32px 40px", maxWidth: 960, margin: "0 auto" }}>
-      <h1 style={{ fontSize: 22, fontWeight: 600, color: "#1a1a1a", margin: 0 }}>Eastlake Sales Overview</h1>
+      <h1 style={{ fontSize: 22, fontWeight: 600, color: "#1a1a1a", margin: 0 }}>Eastlake Sales Overview 11</h1>
       <p style={{ fontSize: 13, color: GRAY, marginTop: 4, marginBottom: 28 }}>
         Northwind-style sample data from the public Eastlake share
       </p>
