@@ -15,8 +15,8 @@ This repo is designed to be **forked** — the user should have their own fork f
 ## Repository Structure
 
 - **`dives/<dive-name>/`** — Each dive gets its own folder with:
-  - `<dive-name>.tsx` — React component using `useSQLQuery` from `@motherduck/react-sql-query` and `recharts` for visualization. Exports a default component and a `REQUIRED_DATABASES` array for share dependencies.
-  - `dive_metadata.json` — `{ "id": "", "title": "...", "description": "..." }`. The `id` is left empty for new dives (populated on first deploy). Title is used to match existing dives for updates.
+  - `<dive-name>.tsx` — React component using `useSQLQuery` from `@motherduck/react-sql-query` and `recharts` for visualization. Exports a default component. May still export a `REQUIRED_DATABASES` array (kept for local preview / legacy runtimes), but the deploy script strips it before upload — the source of truth for share dependencies is `requiredResources` in `dive_metadata.json`.
+  - `dive_metadata.json` — `{ "id": "", "title": "...", "description": "...", "requiredResources": [{ "url": "md:_share/<db>/<uuid>", "alias": "<alias>" }] }`. The `id` is left empty for new dives (populated on first deploy). Title is used to match existing dives for updates. `requiredResources` is required (use `[]` if the dive needs no shares) — `scripts/validate-dives.sh` enforces this in CI.
 - **`.dive-preview/`** — Committed Vite scaffolding for local preview (minus `.env`, `node_modules/`, `src/dive.tsx` which are gitignored).
 - **`.github/workflows/`** — CI/CD for deploying dives on merge and cleaning up previews.
 
@@ -39,7 +39,8 @@ The `.dive-preview/` directory uses a Vite + React setup with an SDK shim (`src/
 
 ## Key Patterns in Dive Code
 
-- `REQUIRED_DATABASES` export **must be a single line** — the CI pipeline uses a regex to strip it before deploying. Multi-line will break deployment.
+- Share dependencies live in `dive_metadata.json` under `requiredResources` and are passed to MotherDuck as `required_resources` on `MD_CREATE_DIVE` / `MD_UPDATE_DIVE_CONTENT`. The deploy script strips any `REQUIRED_DATABASES` export from the source before upload (a duplicate const + server-side metadata causes a runtime error).
+- If you keep a `REQUIRED_DATABASES` export for local preview, it **must be a single line** — the CI strip step uses a regex that only matches single-line declarations.
 - Use `N()` helper for safe numeric conversion: `const N = (v) => (v != null ? Number(v) : 0);`
 - Always use fully qualified table names: `"database"."schema"."table"`
 - Use per-section loading skeletons rather than a single full-page loader
@@ -47,6 +48,7 @@ The `.dive-preview/` directory uses a Vite + React setup with an SDK shim (`src/
 
 ## Creating a New Dive
 
-1. Create `dives/<name>/` with `<name>.tsx` and `dive_metadata.json`
+1. Create `dives/<name>/` with `<name>.tsx` and `dive_metadata.json` (including `requiredResources`)
 2. Add a filter line to `.github/workflows/deploy_dives.yaml`
-3. Test locally via the `.dive-preview/` setup
+3. Run `./scripts/validate-dives.sh` to confirm the metadata schema is valid
+4. Test locally via the `.dive-preview/` setup
