@@ -30,8 +30,17 @@ if [ ! -d "${DIVE_DIR}" ]; then
   exit 1
 fi
 
-TITLE=$(jq -r '.title' "${DIVE_DIR}/dive_metadata.json")
-DESCRIPTION=$(jq -r '.description' "${DIVE_DIR}/dive_metadata.json")
+META="${DIVE_DIR}/dive_metadata.json"
+TITLE=$(jq -r '.title' "$META")
+DESCRIPTION=$(jq -r '.description' "$META")
+
+if ! jq -e 'has("requiredResources") and (.requiredResources | type == "array")' "$META" >/dev/null; then
+  echo "Error: ${DIVE_NAME}/dive_metadata.json must declare requiredResources (array). Run scripts/validate-dives.sh." >&2
+  exit 1
+fi
+
+# Build a DuckDB list literal: [{'url': '...', 'alias': '...'}, ...].
+REQUIRED_RESOURCES_SQL=$(jq -r -f "${SCRIPT_DIR}/required-resources-sql.jq" "$META")
 
 if [ -n "${PREVIEW_BRANCH:-}" ]; then
   DEPLOY_TITLE="${TITLE}:${PREVIEW_BRANCH} (Preview)"
@@ -46,15 +55,16 @@ else
   EXISTING_DIVE_COUNT=$(echo "$EXISTING_DIVE_ID" | wc -l | tr -d ' ')
 fi
 
-# Strip REQUIRED_DATABASES export — the dive runtime declares it; a duplicate causes a runtime error.
+# Strip REQUIRED_DATABASES export — required_resources is now passed to MD_*_DIVE_CONTENT
+# as server-side metadata, so a duplicate const in content causes a runtime error.
 CONTENT_SQL="(SELECT regexp_replace(content, 'export const REQUIRED_DATABASES[^\n]*\n', '', 'g') FROM read_text('${DIVE_DIR}/${DIVE_NAME}.tsx'))"
 
 if (( EXISTING_DIVE_COUNT == 0 )); then
   echo "  Creating new dive '${DEPLOY_TITLE}'..." >&2
-  DIVE_ID=$(duckdb md: -csv -noheader -c "SET VARIABLE content = ${CONTENT_SQL}; SELECT id FROM MD_CREATE_DIVE(title:='${DEPLOY_TITLE}', content:=getvariable('content'), description:='${DESCRIPTION}')")
+  DIVE_ID=$(duckdb md: -csv -noheader -c "SET VARIABLE content = ${CONTENT_SQL}; SELECT id FROM MD_CREATE_DIVE(title = '${DEPLOY_TITLE}', content = getvariable('content'), description = '${DESCRIPTION}', api_version = 1, required_resources = ${REQUIRED_RESOURCES_SQL})")
 elif (( EXISTING_DIVE_COUNT == 1 )); then
   echo "  Updating existing dive '${DEPLOY_TITLE}' (${EXISTING_DIVE_ID})..." >&2
-  duckdb md: -csv -noheader -c "SET VARIABLE content = ${CONTENT_SQL}; FROM MD_UPDATE_DIVE_CONTENT(id='${EXISTING_DIVE_ID}'::UUID, content=getvariable('content')); FROM MD_UPDATE_DIVE_METADATA(id='${EXISTING_DIVE_ID}'::UUID, title='${DEPLOY_TITLE}', description='${DESCRIPTION}');"
+  duckdb md: -csv -noheader -c "SET VARIABLE content = ${CONTENT_SQL}; FROM MD_UPDATE_DIVE_CONTENT(id = '${EXISTING_DIVE_ID}'::UUID, content = getvariable('content'), api_version = 1, required_resources = ${REQUIRED_RESOURCES_SQL}); FROM MD_UPDATE_DIVE_METADATA(id = '${EXISTING_DIVE_ID}'::UUID, title = '${DEPLOY_TITLE}', description = '${DESCRIPTION}');"
   DIVE_ID="${EXISTING_DIVE_ID}"
 else
   echo "Error: Found ${EXISTING_DIVE_COUNT} dives with title '${DEPLOY_TITLE}'. Expected 0 or 1." >&2
