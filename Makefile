@@ -25,8 +25,8 @@ new-dive: ## Scaffold a new dive (e.g. make new-dive my-dive)
 	@test -n "$(DIVE)" || { echo "Usage: make new-dive <name>"; exit 1; }
 	@test ! -d "dives/$(DIVE)" || { echo "Dive already exists: dives/$(DIVE)"; exit 1; }
 	mkdir -p dives/$(DIVE)
-	@printf '{\n  "id": "",\n  "title": "%s",\n  "description": ""\n}\n' "$(DIVE)" > dives/$(DIVE)/dive_metadata.json
-	@echo "Created dives/$(DIVE)/dive_metadata.json -- edit title and description."
+	@printf '{\n  "id": "",\n  "title": "%s",\n  "description": "",\n  "requiredResources": []\n}\n' "$(DIVE)" > dives/$(DIVE)/dive_metadata.json
+	@echo "Created dives/$(DIVE)/dive_metadata.json -- edit title, description, and requiredResources (must list at least one share before deploy)."
 	@echo "Next: create dives/$(DIVE)/$(DIVE).tsx and register in .github/workflows/deploy_dives.yaml"
 
 # -- Help ----------------------------------------------------------------------

@@ -81,7 +81,7 @@ dives/
 ```
 
 - **`<dive-name>.tsx`** -- React component using `useSQLQuery` for live SQL queries. Must have a default export. Use the MCP `get_dive_guide` tool for the full component API, available libraries, and design system.
-- **`dive_metadata.json`** -- `{ "id": "", "title": "...", "description": "..." }`. Leave `id` empty for new dives (populated on first deploy). The `title` is used to match existing dives for updates, so keep it stable.
+- **`dive_metadata.json`** -- `{ "id": "", "title": "...", "description": "...", "requiredResources": [{ "url": "md:_share/...", "alias": "..." }] }`. Leave `id` empty for new dives (populated on first deploy). The `title` is used to match existing dives for updates, so keep it stable. `requiredResources` declares the MotherDuck shares the dive queries (must list at least one) and is passed to the server on deploy as the source of truth for share dependencies.
 
 ## Creating a New Dive
 
