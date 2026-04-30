@@ -1,5 +1,8 @@
 {
   "id": "",
   "title": "Eastlake Sales Overview",
-  "description": "Sales KPIs, monthly revenue trend, and category breakdown from the Eastlake sample dataset"
+  "description": "Sales KPIs, monthly revenue trend, and category breakdown from the Eastlake sample dataset",
+  "requiredResources": [
+    { "url": "md:_share/eastlake/06fa503c-07d5-4097-b272-58f0cc0f1fdf", "alias": "eastlake" }
+  ]
 }

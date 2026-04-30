@@ -33,6 +33,22 @@ fi
 TITLE=$(jq -r '.title' "${DIVE_DIR}/dive_metadata.json")
 DESCRIPTION=$(jq -r '.description' "${DIVE_DIR}/dive_metadata.json")
 
+# Build a DuckDB struct list literal from requiredResources, e.g.
+#   [{'url': 'md:_share/...', 'alias': 'eastlake'}]
+# Single quotes inside fields are escaped by doubling them for SQL.
+REQUIRED_RESOURCES_SQL=$(jq -r '
+  if (.requiredResources | type) != "array" or (.requiredResources | length) == 0 then
+    "must declare at least one entry in requiredResources" | halt_error(1)
+  else
+    "[" + (
+      [.requiredResources[] |
+        "{'\''url'\'': '\''" + (.url | gsub("'\''"; "'\'''\''")) +
+        "'\'', '\''alias'\'': '\''" + (.alias | gsub("'\''"; "'\'''\''")) + "'\''}"
+      ] | join(", ")
+    ) + "]"
+  end
+' "${DIVE_DIR}/dive_metadata.json")
+
 if [ -n "${PREVIEW_BRANCH:-}" ]; then
   DEPLOY_TITLE="${TITLE}:${PREVIEW_BRANCH} (Preview)"
 else
@@ -51,10 +67,10 @@ CONTENT_SQL="(SELECT regexp_replace(content, 'export const REQUIRED_DATABASES[^\
 
 if (( EXISTING_DIVE_COUNT == 0 )); then
   echo "  Creating new dive '${DEPLOY_TITLE}'..." >&2
-  DIVE_ID=$(duckdb md: -csv -noheader -c "SET VARIABLE content = ${CONTENT_SQL}; SELECT id FROM MD_CREATE_DIVE(title:='${DEPLOY_TITLE}', content:=getvariable('content'), description:='${DESCRIPTION}')")
+  DIVE_ID=$(duckdb md: -csv -noheader -c "SET VARIABLE content = ${CONTENT_SQL}; SELECT id FROM MD_CREATE_DIVE(title = '${DEPLOY_TITLE}', content = getvariable('content'), description = '${DESCRIPTION}', api_version = 1, required_resources = ${REQUIRED_RESOURCES_SQL})")
 elif (( EXISTING_DIVE_COUNT == 1 )); then
   echo "  Updating existing dive '${DEPLOY_TITLE}' (${EXISTING_DIVE_ID})..." >&2
-  duckdb md: -csv -noheader -c "SET VARIABLE content = ${CONTENT_SQL}; FROM MD_UPDATE_DIVE_CONTENT(id='${EXISTING_DIVE_ID}'::UUID, content=getvariable('content')); FROM MD_UPDATE_DIVE_METADATA(id='${EXISTING_DIVE_ID}'::UUID, title='${DEPLOY_TITLE}', description='${DESCRIPTION}');"
+  duckdb md: -csv -noheader -c "SET VARIABLE content = ${CONTENT_SQL}; FROM MD_UPDATE_DIVE_CONTENT(id = '${EXISTING_DIVE_ID}'::UUID, content = getvariable('content'), api_version = 1, required_resources = ${REQUIRED_RESOURCES_SQL}); FROM MD_UPDATE_DIVE_METADATA(id = '${EXISTING_DIVE_ID}'::UUID, title = '${DEPLOY_TITLE}', description = '${DESCRIPTION}');"
   DIVE_ID="${EXISTING_DIVE_ID}"
 else
   echo "Error: Found ${EXISTING_DIVE_COUNT} dives with title '${DEPLOY_TITLE}'. Expected 0 or 1." >&2
