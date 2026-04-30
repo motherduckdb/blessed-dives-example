@@ -40,7 +40,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: opt-nc/setup-duckdb-action@v1.2.2
         with:
-          version: v1.4.4
+          version: v1.5.2
       - name: Deploy Dives
         shell: bash
         env:
@@ -60,7 +60,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: opt-nc/setup-duckdb-action@v1.2.2
         with:
-          version: v1.4.4
+          version: v1.5.2
       - name: Deploy Dives for preview
         id: deploy-preview
         shell: bash
