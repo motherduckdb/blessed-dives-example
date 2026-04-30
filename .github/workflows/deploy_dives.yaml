@@ -38,7 +38,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: opt-nc/setup-duckdb-action@v1.2.2
+      - uses: opt-nc/setup-duckdb-action@v1.2.8
         with:
           version: v1.5.2
       - name: Deploy Dives
@@ -58,7 +58,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: opt-nc/setup-duckdb-action@v1.2.2
+      - uses: opt-nc/setup-duckdb-action@v1.2.8
         with:
           version: v1.5.2
       - name: Deploy Dives for preview
